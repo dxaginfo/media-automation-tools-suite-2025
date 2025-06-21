@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SceneValidator - Media Automation Tools</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #2c3e50;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .input-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .results-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-height: 800px;
+            overflow-y: auto;
+        }
+        h1, h2, h3 {
+            color: #3498db;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 10px;
+        }
+        .form-row {
+            margin-bottom: 15px;
+        }
+        .validation-issue {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-left: 4px solid #e74c3c;
+            background-color: #f9eae8;
+        }
+        .validation-issue h4 {
+            margin-top: 0;
+            color: #e74c3c;
+        }
+        .high {
+            border-color: #e74c3c;
+        }
+        .medium {
+            border-color: #f39c12;
+        }
+        .low {
+            border-color: #3498db;
+        }
+        .score-display {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            color: #27ae60;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .loading::after {
+            content: "";
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 6px solid #ddd;
+            border-top-color: #3498db;
+            animation: spin 1s infinite linear;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        #checkTypes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .check-option {
+            display: flex;
+            align-items: center;
+        }
+        .check-option input {
+            width: auto;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>SceneValidator</h1>
+        <p>Validate scene transitions and ensure continuity in media files</p>
+    </div>
+
+    <div class="container">
+        <div class="input-panel">
+            <h2>Input Files</h2>
+            <div class="form-row">
+                <label for="videoFile">Video File (MP4, MOV, AVI) *</label>
+                <input type="file" id="videoFile" accept=".mp4,.mov,.avi" required>
+            </div>
+            
+            <div class="form-row">
+                <label for="scriptFile">Script File (PDF, TXT, DOCX) - Optional</label>
+                <input type="file" id="scriptFile" accept=".pdf,.txt,.docx">
+            </div>
+            
+            <h2>Configuration</h2>
+            <div class="form-row">
+                <label for="apiKey">Gemini API Key</label>
+                <input type="password" id="apiKey" placeholder="Enter your API key">
+                <small>Your API key is stored locally and only used for this session.</small>
+            </div>
+            
+            <div class="form-row">
+                <label for="sensitivity">Detection Sensitivity</label>
+                <input type="range" id="sensitivity" min="0.1" max="1.0" step="0.1" value="0.7">
+                <small>Current: <span id="sensitivityValue">0.7</span> (Higher values detect more subtle transitions)</small>
+            </div>
+            
+            <div class="form-row">
+                <label>Check Types</label>
+                <div id="checkTypes">
+                    <div class="check-option">
+                        <input type="checkbox" id="checkLighting" checked>
+                        <label for="checkLighting">Lighting</label>
+                    </div>
+                    <div class="check-option">
+                        <input type="checkbox" id="checkProps" checked>
+                        <label for="checkProps">Props</label>
+                    </div>
+                    <div class="check-option">
+                        <input type="checkbox" id="checkCostume" checked>
+                        <label for="checkCostume">Costume</label>
+                    </div>
+                    <div class="check-option">
+                        <input type="checkbox" id="checkTiming" checked>
+                        <label for="checkTiming">Timing</label>
+                    </div>
+                    <div class="check-option">
+                        <input type="checkbox" id="checkDialogue">
+                        <label for="checkDialogue">Dialogue</label>
+                    </div>
+                </div>
+            </div>
+            
+            <button id="validateBtn">Validate</button>
+            <div id="loading" class="loading"></div>
+        </div>
+        
+        <div class="results-panel">
+            <h2>Validation Results</h2>
+            <div id="results">
+                <p>Results will appear here after validation.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // This is a frontend mockup - in a real implementation, 
+        // this would connect to a backend service running the Python code
+        document.getElementById('validateBtn').addEventListener('click', function() {
+            // Form validation
+            const videoFile = document.getElementById('videoFile').files[0];
+            if (!videoFile) {
+                alert('Please select a video file');
+                return;
+            }
+            
+            // Get configuration values
+            const apiKey = document.getElementById('apiKey').value;
+            const sensitivity = document.getElementById('sensitivity').value;
+            const scriptFile = document.getElementById('scriptFile').files[0];
+            
+            // Get selected check types
+            const checkTypes = [];
+            if (document.getElementById('checkLighting').checked) checkTypes.push('lighting');
+            if (document.getElementById('checkProps').checked) checkTypes.push('props');
+            if (document.getElementById('checkCostume').checked) checkTypes.push('costume');
+            if (document.getElementById('checkTiming').checked) checkTypes.push('timing');
+            if (document.getElementById('checkDialogue').checked) checkTypes.push('dialogue');
+            
+            // Show loading indicator
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').innerHTML = '<p>Processing...</p>';
+            
+            // In a real implementation, this would be an API call
+            // For this mockup, we'll simulate a response after a delay
+            setTimeout(() => {
+                showMockResults();
+                document.getElementById('loading').style.display = 'none';
+            }, 3000);
+        });
+        
+        // Update sensitivity value display
+        document.getElementById('sensitivity').addEventListener('input', function() {
+            document.getElementById('sensitivityValue').textContent = this.value;
+        });
+        
+        function showMockResults() {
+            // This function simulates results - in a real implementation, 
+            // this would process the actual results from the backend
+            const mockResults = {
+                validation_summary: {
+                    timestamp: new Date().toISOString(),
+                    pass: false,
+                    score: 85,
+                    issues_count: 2
+                },
+                scene_transitions: [
+                    {
+                        timestamp: "00:01:45.230",
+                        issues: [
+                            {
+                                type: "lighting_mismatch",
+                                severity: "medium",
+                                description: "Light direction changes between cuts. The light source appears to move from left to right.",
+                                suggestion: "Adjust lighting in post-processing or reshoot with consistent lighting setup."
+                            }
+                        ]
+                    },
+                    {
+                        timestamp: "00:03:22.150",
+                        issues: [
+                            {
+                                type: "prop_continuity_error",
+                                severity: "high",
+                                description: "Coffee cup disappears between scenes. Character is holding cup in one shot but not in the next.",
+                                suggestion: "Edit scene to remove cup from first shot or add cup to second shot."
+                            }
+                        ]
+                    },
+                    {
+                        timestamp: "00:04:58.720",
+                        issues: []
+                    }
+                ]
+            };
+            
+            let resultsHtml = `
+                <div class="score-display">
+                    Validation Score: ${mockResults.validation_summary.score}/100
+                </div>
+                <p>
+                    <strong>Issues found:</strong> ${mockResults.validation_summary.issues_count}<br>
+                    <strong>Timestamp:</strong> ${new Date(mockResults.validation_summary.timestamp).toLocaleString()}
+                </p>
+                <h3>Scene Transitions</h3>
+            `;
+            
+            mockResults.scene_transitions.forEach(transition => {
+                if (transition.issues.length > 0) {
+                    resultsHtml += `<h4>Issues at ${transition.timestamp}:</h4>`;
+                    
+                    transition.issues.forEach(issue => {
+                        resultsHtml += `
+                            <div class="validation-issue ${issue.severity}">
+                                <h4>${formatIssueType(issue.type)} (${issue.severity})</h4>
+                                <p>${issue.description}</p>
+                                <p><strong>Suggestion:</strong> ${issue.suggestion}</p>
+                            </div>
+                        `;
+                    });
+                }
+            });
+            
+            document.getElementById('results').innerHTML = resultsHtml;
+        }
+        
+        function formatIssueType(type) {
+            return type
+                .split('_')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        }
+    </script>
+</body>
+</html>
