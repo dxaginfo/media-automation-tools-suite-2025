@@ -1,0 +1,26 @@
+{
+  "gemini_api_key": "YOUR_API_KEY_HERE",
+  "sensitivity": 0.7,
+  "check_types": ["lighting", "props", "costume", "timing", "dialogue"],
+  "output_format": "json",
+  "save_results": true,
+  "results_path": "./validation_results/",
+  "cloud_storage": {
+    "enabled": false,
+    "bucket_name": "your-bucket-name",
+    "project_id": "your-project-id",
+    "credentials_path": "path/to/credentials.json"
+  },
+  "firebase": {
+    "enabled": false,
+    "collection": "scene_validations",
+    "project_id": "your-firebase-project-id"
+  },
+  "advanced": {
+    "frame_interval": 0.5,
+    "transition_buffer": 500,
+    "histogram_method": "HISTCMP_CORREL",
+    "gradual_transition_detection": false,
+    "max_threads": 4
+  }
+}
