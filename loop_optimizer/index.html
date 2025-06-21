@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoopOptimizer - Media Automation Tools</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #2c3e50;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .results-panel {
+            max-height: 800px;
+            overflow-y: auto;
+        }
+        h1, h2, h3 {
+            color: #2980b9;
+        }
+        button {
+            background-color: #2980b9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #1c638e;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 10px;
+        }
+        .form-row {
+            margin-bottom: 15px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .loading::after {
+            content: "";
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 6px solid #ddd;
+            border-top-color: #2980b9;
+            animation: spin 1s infinite linear;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loop-point {
+            background-color: #ecf0f1;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #2980b9;
+        }
+        .high {
+            border-left-color: #27ae60;
+        }
+        .medium {
+            border-left-color: #f39c12;
+        }
+        .low {
+            border-left-color: #e74c3c;
+        }
+        .loop-point button {
+            margin-top: 5px;
+            margin-right: 10px;
+        }
+        .preview-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .preview-container audio, 
+        .preview-container video {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .tab-container {
+            margin-bottom: 20px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background: white;
+            border-bottom: 1px solid white;
+            margin-bottom: -1px;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .range-container {
+            display: flex;
+            align-items: center;
+        }
+        .range-input {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+        .range-value {
+            width: 60px;
+            text-align: center;
+        }
+        .slider-container {
+            position: relative;
+            height: 100px;
+            background: #f0f0f0;
+            margin: 20px 0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .waveform {
+            width: 100%;
+            height: 100%;
+            background: #e0e0e0;
+        }
+        .loop-marker {
+            position: absolute;
+            height: 100%;
+            width: 2px;
+            background: #2980b9;
+            top: 0;
+        }
+        .loop-marker.start {
+            background: #27ae60;
+        }
+        .loop-marker.end {
+            background: #e74c3c;
+        }
+        .loop-region {
+            position: absolute;
+            height: 100%;
+            background: rgba(41, 128, 185, 0.2);
+            top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>LoopOptimizer</h1>
+        <p>Optimize audio and video clips for seamless looping playback</p>
+    </div>
+
+    <div class="tab-container">
+        <div class="tabs">
+            <div class="tab active" data-tab="audio">Audio Optimizer</div>
+            <div class="tab" data-tab="video">Video Optimizer</div>
+        </div>
+        
+        <div class="tab-content active" data-tab="audio">
+            <div class="container">
+                <div class="panel">
+                    <h2>Audio Loop Configuration</h2>
+                    
+                    <div class="form-row">
+                        <label for="audioFile">Audio File (MP3, WAV, OGG)</label>
+                        <input type="file" id="audioFile" accept=".mp3,.wav,.ogg">
+                    </div>
+                    
+                    <div class="form-row">
+                        <label for="minLoopLength">Minimum Loop Length (seconds)</label>
+                        <div class="range-container">
+                            <input type="range" id="minLoopLength" min="0.5" max="10" step="0.5" value="1.0" class="range-input">
+                            <span id="minLoopLengthValue" class="range-value">1.0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <label for="maxLoopLength">Maximum Loop Length (seconds)</label>
+                        <div class="range-container">
+                            <input type="range" id="maxLoopLength" min="5" max="60" step="1" value="30" class="range-input">
+                            <span id="maxLoopLengthValue" class="range-value">30</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <label for="crossfadeDuration">Crossfade Duration (seconds)</label>
+                        <div class="range-container">
+                            <input type="range" id="crossfadeDuration" min="0" max="1" step="0.01" value="0.1" class="range-input">
+                            <span id="crossfadeDurationValue" class="range-value">0.1</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <label for="similarityThreshold">Similarity Threshold</label>
+                        <div class="range-container">
+                            <input type="range" id="similarityThreshold" min="0.5" max="1" step="0.01" value="0.9" class="range-input">
+                            <span id="similarityThresholdValue" class="range-value">0.9</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <label for="loopDuration">Output Duration (seconds)</label>
+                        <input type="number" id="loopDuration" min="5" max="300" value="60">
+                    </div>
+                    
+                    <button id="analyzeAudioBtn">Analyze Audio</button>
+                    <div id="audioLoading" class="loading"></div>
+                </div>
+                
+                <div class="panel results-panel">
+                    <h2>Analysis Results</h2>
+                    
+                    <div id="audioWaveform" class="slider-container">
+                        <div class="waveform"></div>
+                        <!-- Loop markers will be added here -->
+                    </div>
+                    
+                    <div id="audioResults">
+                        <p>Upload an audio file and click "Analyze Audio" to find optimal loop points.</p>
+                    </div>
+                    
+                    <div id="audioPreview" class="preview-container">
+                        <!-- Audio preview will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content" data-tab="video">
+            <div class="container">
+                <div class="panel">
+                    <h2>Video Loop Configuration</h2>
+                    
+                    <div class="form-row">
+                        <label for="videoFile">Video File (MP4, WebM, MOV)</label>
+                        <input type="file" id="videoFile" accept=".mp4,.webm,.mov">
+                    </div>
+                    
+                    <div class="form-row">
+                        <label for="videoMinLoopLength">Minimum Loop Length (seconds)</label>
+                        <div class="range-container">
+                            <input type="range" id="videoMinLoopLength" min="1" max="15" step="0.5" value="3.0" class="range-input">
+                            <span id="videoMinLoopLengthValue" class="range-value">3.0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <label for="videoMaxLoopLength">Maximum Loop Length (seconds)</label>
+                        <div class="range-container">
+                            <input type="range" id="videoMaxLoopLength" min="10" max="120" step="1" value="60" class="range-input">
+                            <span id="videoMaxLoopLengthValue" class="range-value">60</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <label for="videoAnalysisFramerate">Analysis Framerate</label>
+                        <select id="videoAnalysisFramerate">
+                            <option value="1">1 fps (faster analysis)</option>
+                            <option value="5" selected>5 fps (balanced)</option>
+                            <option value="10">10 fps (more accurate)</option>
+                            <option value="15">15 fps (high accuracy, slower)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <label for="videoLoopDuration">Output Duration (seconds)</label>
+                        <input type="number" id="videoLoopDuration" min="5" max="300" value="60">
+                    </div>
+                    
+                    <button id="analyzeVideoBtn">Analyze Video</button>
+                    <div id="videoLoading" class="loading"></div>
+                </div>
+                
+                <div class="panel results-panel">
+                    <h2>Video Analysis Results</h2>
+                    
+                    <div id="videoResults">
+                        <p>Upload a video file and click "Analyze Video" to find optimal loop points.</p>
+                    </div>
+                    
+                    <div id="videoPreview" class="preview-container">
+                        <!-- Video preview will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="loop_optimizer.js"></script>
+    <script>
+        // Initialize LoopOptimizer
+        const optimizer = new LoopOptimizer();
+        
+        // Set up tabs
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and content
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding content
+                const tabName = tab.getAttribute('data-tab');
+                tab.classList.add('active');
+                document.querySelector(`.tab-content[data-tab="${tabName}"]`).classList.add('active');
+            });
+        });
+        
+        // Audio tab functionality
+        const audioFileInput = document.getElementById('audioFile');
+        const analyzeAudioBtn = document.getElementById('analyzeAudioBtn');
+        const audioResults = document.getElementById('audioResults');
+        const audioPreview = document.getElementById('audioPreview');
+        const audioWaveform = document.getElementById('audioWaveform');
+        const audioLoading = document.getElementById('audioLoading');
+        
+        // Update range value displays
+        document.getElementById('minLoopLength').addEventListener('input', e => {
+            document.getElementById('minLoopLengthValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('maxLoopLength').addEventListener('input', e => {
+            document.getElementById('maxLoopLengthValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('crossfadeDuration').addEventListener('input', e => {
+            document.getElementById('crossfadeDurationValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('similarityThreshold').addEventListener('input', e => {
+            document.getElementById('similarityThresholdValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('videoMinLoopLength').addEventListener('input', e => {
+            document.getElementById('videoMinLoopLengthValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('videoMaxLoopLength').addEventListener('input', e => {
+            document.getElementById('videoMaxLoopLengthValue').textContent = e.target.value;
+        });
+        
+        // Analyze audio
+        analyzeAudioBtn.addEventListener('click', async () => {
+            if (!audioFileInput.files[0]) {
+                alert('Please select an audio file.');
+                return;
+            }
+            
+            // Update optimizer config
+            optimizer.config.minLoopLength = parseFloat(document.getElementById('minLoopLength').value);
+            optimizer.config.maxLoopLength = parseFloat(document.getElementById('maxLoopLength').value);
+            optimizer.config.crossfadeDuration = parseFloat(document.getElementById('crossfadeDuration').value);
+            optimizer.config.similarityThreshold = parseFloat(document.getElementById('similarityThreshold').value);
+            
+            try {
+                // Show loading indicator
+                audioLoading.style.display = 'block';
+                audioResults.innerHTML = '<p>Analyzing audio...</p>';
+                audioPreview.innerHTML = '';
+                audioWaveform.innerHTML = '<div class="waveform"></div>';
+                
+                // Analyze audio
+                const results = await optimizer.analyzeAudio(audioFileInput.files[0]);
+                
+                // Display results
+                displayAudioResults(results);
+                
+                // Hide loading indicator
+                audioLoading.style.display = 'none';
+            } catch (error) {
+                console.error('Error analyzing audio:', error);
+                audioResults.innerHTML = `<p>Error: ${error.message}</p>`;
+                audioLoading.style.display = 'none';
+            }
+        });
+        
+        // Display audio analysis results
+        function displayAudioResults(results) {
+            if (!results.loopPoints || results.loopPoints.length === 0) {
+                audioResults.innerHTML = '<p>No suitable loop points found. Try adjusting the analysis parameters.</p>';
+                return;
+            }
+            
+            let html = `
+                <h3>Audio Information</h3>
+                <p>Duration: ${results.duration.toFixed(2)} seconds</p>
+                <p>Sample Rate: ${results.sampleRate} Hz</p>
+                <p>Channels: ${results.numberOfChannels}</p>
+                <h3>Potential Loop Points</h3>
+            `;
+            
+            results.loopPoints.forEach((point, index) => {
+                const loopLength = (point.endTime - point.startTime).toFixed(2);
+                
+                html += `
+                    <div class="loop-point ${point.confidence}">
+                        <h4>Loop Point ${index + 1}</h4>
+                        <p>Start: ${point.startTime.toFixed(2)}s - End: ${point.endTime.toFixed(2)}s (Length: ${loopLength}s)</p>
+                        <p>Similarity Score: ${(point.similarity * 100).toFixed(1)}% (${point.confidence} confidence)</p>
+                        <button class="preview-btn" data-start="${point.startTime}" data-end="${point.endTime}">Preview</button>
+                        <button class="create-btn" data-start="${point.startTime}" data-end="${point.endTime}">Create Loop</button>
+                    </div>
+                `;
+                
+                // Add markers to waveform
+                const startPercent = (point.startTime / results.duration) * 100;
+                const endPercent = (point.endTime / results.duration) * 100;
+                
+                const startMarker = document.createElement('div');
+                startMarker.className = 'loop-marker start';
+                startMarker.style.left = `${startPercent}%`;
+                startMarker.setAttribute('title', `Start: ${point.startTime.toFixed(2)}s`);
+                
+                const endMarker = document.createElement('div');
+                endMarker.className = 'loop-marker end';
+                endMarker.style.left = `${endPercent}%`;
+                endMarker.setAttribute('title', `End: ${point.endTime.toFixed(2)}s`);
+                
+                const region = document.createElement('div');
+                region.className = 'loop-region';
+                region.style.left = `${startPercent}%`;
+                region.style.width = `${endPercent - startPercent}%`;
+                
+                audioWaveform.appendChild(startMarker);
+                audioWaveform.appendChild(endMarker);
+                audioWaveform.appendChild(region);
+            });
+            
+            audioResults.innerHTML = html;
+            
+            // Add event listeners to buttons
+            document.querySelectorAll('.preview-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const startTime = parseFloat(btn.getAttribute('data-start'));
+                    const endTime = parseFloat(btn.getAttribute('data-end'));
+                    
+                    // Create audio element for preview
+                    const audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = URL.createObjectURL(audioFileInput.files[0]);
+                    
+                    // Set the time to the start point
+                    audio.currentTime = startTime;
+                    
+                    // Add event listener to loop back to start when reaching end
+                    audio.addEventListener('timeupdate', () => {
+                        if (audio.currentTime >= endTime) {
+                            audio.currentTime = startTime;
+                        }
+                    });
+                    
+                    // Replace any existing preview
+                    audioPreview.innerHTML = '<h3>Loop Preview</h3>';
+                    audioPreview.appendChild(audio);
+                    
+                    // Start playing
+                    audio.play();
+                });
+            });
+            
+            document.querySelectorAll('.create-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const startTime = parseFloat(btn.getAttribute('data-start'));
+                    const endTime = parseFloat(btn.getAttribute('data-end'));
+                    const duration = parseFloat(document.getElementById('loopDuration').value);
+                    
+                    try {
+                        // Show loading indicator
+                        audioLoading.style.display = 'block';
+                        audioPreview.innerHTML = '<h3>Creating Loop...</h3>';
+                        
+                        // Create the loop
+                        const loopBlob = await optimizer.createAudioLoop(
+                            audioFileInput.files[0], 
+                            startTime, 
+                            endTime, 
+                            duration
+                        );
+                        
+                        // Create audio element with the loop
+                        const audio = document.createElement('audio');
+                        audio.controls = true;
+                        audio.loop = true;
+                        audio.src = URL.createObjectURL(loopBlob);
+                        
+                        // Add download link
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = audio.src;
+                        downloadLink.download = `loop_${startTime.toFixed(1)}_${endTime.toFixed(1)}.wav`;
+                        downloadLink.textContent = 'Download Loop';
+                        downloadLink.style.display = 'block';
+                        downloadLink.style.marginTop = '10px';
+                        
+                        // Replace any existing preview
+                        audioPreview.innerHTML = '<h3>Created Loop</h3>';
+                        audioPreview.appendChild(audio);
+                        audioPreview.appendChild(downloadLink);
+                        
+                        // Hide loading indicator
+                        audioLoading.style.display = 'none';
+                    } catch (error) {
+                        console.error('Error creating audio loop:', error);
+                        audioPreview.innerHTML = `<h3>Error</h3><p>${error.message}</p>`;
+                        audioLoading.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // Video tab functionality
+        const videoFileInput = document.getElementById('videoFile');
+        const analyzeVideoBtn = document.getElementById('analyzeVideoBtn');
+        const videoResults = document.getElementById('videoResults');
+        const videoPreview = document.getElementById('videoPreview');
+        const videoLoading = document.getElementById('videoLoading');
+        
+        // Analyze video
+        analyzeVideoBtn.addEventListener('click', async () => {
+            if (!videoFileInput.files[0]) {
+                alert('Please select a video file.');
+                return;
+            }
+            
+            // Update optimizer config
+            optimizer.config.minLoopLength = parseFloat(document.getElementById('videoMinLoopLength').value);
+            optimizer.config.maxLoopLength = parseFloat(document.getElementById('videoMaxLoopLength').value);
+            optimizer.config.videoAnalysisFramerate = parseInt(document.getElementById('videoAnalysisFramerate').value);
+            
+            try {
+                // Show loading indicator
+                videoLoading.style.display = 'block';
+                videoResults.innerHTML = '<p>Analyzing video...</p>';
+                videoPreview.innerHTML = '';
+                
+                // Analyze video
+                const results = await optimizer.analyzeVideo(videoFileInput.files[0]);
+                
+                // Display results
+                displayVideoResults(results);
+                
+                // Hide loading indicator
+                videoLoading.style.display = 'none';
+            } catch (error) {
+                console.error('Error analyzing video:', error);
+                videoResults.innerHTML = `<p>Error: ${error.message}</p>`;
+                videoLoading.style.display = 'none';
+            }
+        });
+        
+        // Display video analysis results
+        function displayVideoResults(results) {
+            if (!results.loopPoints || results.loopPoints.length === 0) {
+                videoResults.innerHTML = '<p>No suitable loop points found. Try adjusting the analysis parameters.</p>';
+                return;
+            }
+            
+            let html = `
+                <h3>Video Information</h3>
+                <p>Duration: ${results.duration.toFixed(2)} seconds</p>
+                <p>Resolution: ${results.resolution.width}×${results.resolution.height}</p>
+                <p>Frame Rate: ${results.frameRate} fps</p>
+                <h3>Potential Loop Points</h3>
+            `;
+            
+            results.loopPoints.forEach((point, index) => {
+                const loopLength = (point.endTime - point.startTime).toFixed(2);
+                
+                html += `
+                    <div class="loop-point ${point.confidence}">
+                        <h4>Loop Point ${index + 1}</h4>
+                        <p>Start: ${point.startTime.toFixed(2)}s - End: ${point.endTime.toFixed(2)}s (Length: ${loopLength}s)</p>
+                        <p>Similarity Score: ${(point.similarity * 100).toFixed(1)}% (${point.confidence} confidence)</p>
+                        <button class="video-preview-btn" data-start="${point.startTime}" data-end="${point.endTime}">Preview</button>
+                    </div>
+                `;
+            });
+            
+            videoResults.innerHTML = html;
+            
+            // Add event listeners to buttons
+            document.querySelectorAll('.video-preview-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const startTime = parseFloat(btn.getAttribute('data-start'));
+                    const endTime = parseFloat(btn.getAttribute('data-end'));
+                    const duration = parseFloat(document.getElementById('videoLoopDuration').value);
+                    
+                    try {
+                        // Show loading indicator
+                        videoLoading.style.display = 'block';
+                        videoPreview.innerHTML = '<h3>Creating Preview...</h3>';
+                        
+                        // Create the loop preview
+                        const videoElement = await optimizer.createVideoLoopPreview(
+                            videoFileInput.files[0], 
+                            startTime, 
+                            endTime, 
+                            duration
+                        );
+                        
+                        // Replace any existing preview
+                        videoPreview.innerHTML = '<h3>Loop Preview</h3>';
+                        videoPreview.appendChild(videoElement);
+                        
+                        // Start playing
+                        videoElement.play();
+                        
+                        // Hide loading indicator
+                        videoLoading.style.display = 'none';
+                    } catch (error) {
+                        console.error('Error creating video loop preview:', error);
+                        videoPreview.innerHTML = `<h3>Error</h3><p>${error.message}</p>`;
+                        videoLoading.style.display = 'none';
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
